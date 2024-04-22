@@ -55,6 +55,16 @@ func getPath(str string) string {
 	return paths[1]
 }
 
+func getHeader(strs []string, key string) string {
+	for _, v := range strs {
+		if strings.Contains(v, key) {
+			return v
+		}
+	}
+
+	return ""
+}
+
 func subPath(path string) []string {
 	paths := strings.Split(path, constants.Slash)
 	return paths
@@ -73,7 +83,7 @@ func handle(conn net.Conn) error {
 	strs := parse(buf)
 	path := getPath(strs[0])
 	subPaths := subPath(path)
-	fmt.Println(subPaths, subPaths[0], subPaths[1])
+
 	switch subPaths[1] {
 	case "":
 		_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
@@ -84,6 +94,15 @@ func handle(conn net.Conn) error {
 		return nil
 	case "echo":
 		_, err = conn.Write(helper.NewResponse(http.StatusOK, []byte(strings.Join(subPaths[2:], constants.Slash)), "text/plain"))
+		if err != nil {
+			fmt.Println("Error Write connection: ", err.Error())
+			return err
+		}
+		return nil
+	case "user-agent":
+		userAgent := getHeader(strs, "User-Agent")
+		userAgent = strings.Replace(userAgent, "User-Agent: ", "", 1)
+		_, err = conn.Write(helper.NewResponse(http.StatusOK, []byte(userAgent), "text/plain"))
 		if err != nil {
 			fmt.Println("Error Write connection: ", err.Error())
 			return err
