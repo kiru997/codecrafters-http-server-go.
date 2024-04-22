@@ -19,7 +19,7 @@ func NewResponse(status int, body []byte, ct string) []byte {
 
 	res = append(res, []byte(fmt.Sprintf("HTTP/1.1 %d %v%s", status, statusText, constants.CRLF))...)
 
-	if status == http.StatusNotFound || status == http.StatusInternalServerError {
+	if status == http.StatusNotFound || status == http.StatusInternalServerError || status == http.StatusCreated {
 		return append(res, constants.CRLF...)
 	}
 

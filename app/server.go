@@ -63,6 +63,14 @@ func getPath(str string) string {
 	return paths[1]
 }
 
+func getMethod(str string) string {
+	paths := strings.Split(str, " ")
+	if len(paths) < 1 {
+		return ""
+	}
+	return paths[0]
+}
+
 func getHeader(strs []string, key string) string {
 	for _, v := range strs {
 		if strings.Contains(v, key) {
@@ -78,19 +86,28 @@ func subPath(path string) []string {
 	return paths
 }
 
+func create(p string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(p), 0770); err != nil {
+		return nil, err
+	}
+	return os.Create(p)
+}
+
 func handle(conn net.Conn) error {
 	defer conn.Close()
 
 	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
 		return err
 	}
+	buf = buf[:n]
 
 	strs := parse(buf)
 	path := getPath(strs[0])
 	subPaths := subPath(path)
+	method := getMethod(strs[0])
 
 	switch subPaths[1] {
 	case "":
@@ -119,6 +136,36 @@ func handle(conn net.Conn) error {
 	case "files":
 		fileName := strings.Join(subPaths[2:], constants.Slash)
 		path := filepath.Join(rootDir, fileName)
+		if method == "POST" {
+			file, err := create(path)
+			if err != nil {
+				_, err = conn.Write(helper.NewResponse(http.StatusInternalServerError, []byte{}, ""))
+				if err != nil {
+					fmt.Println("Error Write connection: ", err.Error())
+					return err
+				}
+				return nil
+			}
+			defer file.Close()
+
+			err = os.WriteFile(path, []byte(strs[len(strs)-1]), 0666)
+			if err != nil {
+				_, err = conn.Write(helper.NewResponse(http.StatusInternalServerError, []byte{}, ""))
+				if err != nil {
+					fmt.Println("Error Write connection: ", err.Error())
+					return err
+				}
+				return nil
+			}
+
+			_, err = conn.Write(helper.NewResponse(http.StatusCreated, []byte{}, ""))
+			if err != nil {
+				fmt.Println("Error Write connection: ", err.Error())
+				return err
+			}
+			return nil
+		}
+
 		_, err := os.Stat(path)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
