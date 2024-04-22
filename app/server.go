@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
+
+	"github.com/codecrafters-io/http-server-starter-go/pkg/constants"
+	"github.com/codecrafters-io/http-server-starter-go/pkg/helper"
 	// Uncomment this block to pass the first stage
 	// "net"
 	// "os"
 )
-
-var CRLF = []byte("\r\n")
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -41,7 +43,7 @@ func main() {
 
 func parse(buf []byte) []string {
 	str := string(buf)
-	strs := strings.Split(str, string(CRLF))
+	strs := strings.Split(str, string(constants.CRLF))
 	return strs
 }
 
@@ -51,6 +53,11 @@ func getPath(str string) string {
 		return ""
 	}
 	return paths[1]
+}
+
+func subPath(path string) []string {
+	paths := strings.Split(path, constants.Slash)
+	return paths
 }
 
 func handle(conn net.Conn) error {
@@ -65,8 +72,18 @@ func handle(conn net.Conn) error {
 
 	strs := parse(buf)
 	path := getPath(strs[0])
-	if path == "/" {
+	subPaths := subPath(path)
+	fmt.Println(subPaths, subPaths[0], subPaths[1])
+	switch subPaths[1] {
+	case "":
 		_, err = conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		if err != nil {
+			fmt.Println("Error Write connection: ", err.Error())
+			return err
+		}
+		return nil
+	case "echo":
+		_, err = conn.Write(helper.NewResponse(http.StatusOK, []byte(strings.Join(subPaths[2:], constants.Slash)), "text/plain"))
 		if err != nil {
 			fmt.Println("Error Write connection: ", err.Error())
 			return err
