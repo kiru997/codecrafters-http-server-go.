@@ -13,12 +13,14 @@ func NewResponse(status int, body []byte, ct string) []byte {
 	switch status {
 	case http.StatusNotFound:
 		statusText = "Not Found"
+	case http.StatusInternalServerError:
+		statusText = "Internal Server Error"
 	}
 
 	res = append(res, []byte(fmt.Sprintf("HTTP/1.1 %d %v%s", status, statusText, constants.CRLF))...)
 
-	if status == http.StatusNotFound {
-		return res
+	if status == http.StatusNotFound || status == http.StatusInternalServerError {
+		return append(res, constants.CRLF...)
 	}
 
 	if ct != "" {

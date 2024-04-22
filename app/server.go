@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/codecrafters-io/http-server-starter-go/pkg/constants"
@@ -14,10 +17,14 @@ import (
 	// "os"
 )
 
+var rootDir string
+
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
+	flag.StringVar(&rootDir, "directory", "", "Root directory to conduct a file search on")
+	flag.Parse()
 	// Uncomment this block to pass the first stage
 	//
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -109,6 +116,38 @@ func handle(conn net.Conn) error {
 			return err
 		}
 		return nil
+	case "files":
+		fileName := strings.Join(subPaths[2:], constants.Slash)
+		path := filepath.Join(rootDir, fileName)
+		_, err := os.Stat(path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				_, err = conn.Write(helper.NewResponse(http.StatusNotFound, []byte{}, ""))
+				if err != nil {
+					fmt.Println("Error Write connection: ", err.Error())
+					return err
+				}
+			}
+			_, err = conn.Write(helper.NewResponse(http.StatusInternalServerError, []byte{}, ""))
+			if err != nil {
+				fmt.Println("Error Write connection: ", err.Error())
+				return err
+			}
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			_, err = conn.Write(helper.NewResponse(http.StatusInternalServerError, []byte{}, ""))
+			if err != nil {
+				fmt.Println("Error Write connection: ", err.Error())
+				return err
+			}
+		}
+		_, err = conn.Write(helper.NewResponse(http.StatusOK, data, "application/octet-stream"))
+		if err != nil {
+			fmt.Println("Error Write connection: ", err.Error())
+			return err
+		}
 	}
 
 	_, err = conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
