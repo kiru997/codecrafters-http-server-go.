@@ -32,12 +32,13 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			os.Exit(1)
 		}
-		err = handle(conn)
-		if err != nil {
-			fmt.Println("Error handle connection: ", err.Error())
-			continue
-		}
-
+		go func() {
+			err = handle(conn)
+			if err != nil {
+				fmt.Println("Error handle connection: ", err.Error())
+				return
+			}
+		}()
 	}
 }
 
